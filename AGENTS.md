@@ -1,5 +1,7 @@
 # Instruções do repositório
 
+- Para alterações transversais, leia `../oficina-mecanica-api/.agents/skills/oficina-mecanica/SKILL.md` e as ADRs/RFCs relevantes. Se o clone irmão estiver indisponível, procure os documentos no GitHub e informe a limitação antes de alterar contratos. Não presuma descoberta automática da skill. Preserve os guardrails abaixo.
+
 ## Escopo e autonomia
 
 - Trabalhe somente no escopo solicitado e preserve alterações locais existentes.
