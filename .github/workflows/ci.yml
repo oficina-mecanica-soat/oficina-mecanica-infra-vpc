@@ -147,6 +147,16 @@ jobs:
           const cp = require('node:child_process');
           const assert = require('node:assert/strict');
           const workflow = fs.readFileSync('.github/workflows/aws-deploy.yml', 'utf8');
+          for (const job of ['prepare_and_plan', 'apply_or_destroy']) {
+            const trecho = workflow.split(`\n  ${job}:`)[1];
+            assert.ok(trecho, `Job ${job} deve existir.`);
+            const restaurar = trecho.indexOf('uses: actions/cache/restore@');
+            const validar = trecho.indexOf('run: node .github/scripts/bootstrap-account-state.cjs');
+            const prepararDestroy = trecho.indexOf('run: node .github/scripts/prepare-destroy.cjs');
+            const inicializar = trecho.indexOf('init -input=false');
+            assert.ok(restaurar >= 0 && validar > restaurar && prepararDestroy > validar && inicializar > prepararDestroy,
+              `${job}: restaurar cache antes de validar state, preparar destroy e inicializar.`);
+          }
           const bloco = workflow.match(/        run: \|\r?\n([\s\S]*?)\r?\n  prepare_and_plan:/);
           assert.ok(bloco, 'Etapa real de resolução deve existir.');
           const codigo = bloco[1].split(/\r?\n/).map(l => l.slice(10)).join('\n');
