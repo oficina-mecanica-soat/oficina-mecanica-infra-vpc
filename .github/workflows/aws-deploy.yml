@@ -39,7 +39,16 @@ jobs:
         env:
           GITHUB_BEFORE: ${{ github.event.before }}
           GITHUB_AFTER: ${{ github.sha }}
+          DEPLOY_ENABLED: ${{ vars.AWS_DEPLOY_ENABLED }}
         run: |
+          if [ "$DEPLOY_ENABLED" != "true" ]; then
+            echo "::error::AWS_DEPLOY_ENABLED não está habilitado; operação bloqueada."
+            exit 1
+          fi
+          if [ "$GITHUB_REF" != "refs/heads/develop" ]; then
+            echo "::error::Operação AWS permitida somente pela branch develop."
+            exit 1
+          fi
           control_file="$TF_WORKING_DIRECTORY/terraform-action.env"
           terraform_action="apply"
 
