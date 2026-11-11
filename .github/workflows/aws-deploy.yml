@@ -39,7 +39,16 @@ jobs:
         env:
           GITHUB_BEFORE: ${{ github.event.before }}
           GITHUB_AFTER: ${{ github.sha }}
+          DEPLOY_ENABLED: ${{ vars.AWS_DEPLOY_ENABLED }}
         run: |
+          if [ "$DEPLOY_ENABLED" != "true" ]; then
+            echo "::error::AWS_DEPLOY_ENABLED não está habilitado; operação bloqueada."
+            exit 1
+          fi
+          if [ "$GITHUB_REF" != "refs/heads/develop" ]; then
+            echo "::error::Operação AWS permitida somente pela branch develop."
+            exit 1
+          fi
           control_file="$TF_WORKING_DIRECTORY/terraform-action.env"
           terraform_action="apply"
 
@@ -241,17 +250,7 @@ jobs:
           terraform_version: ${{ env.TERRAFORM_VERSION }}
           terraform_wrapper: false
 
-      - name: "🛡️ Validar state da conta AWS atual"
-        run: node .github/scripts/bootstrap-account-state.cjs
-
-      - name: "🛡️ Preparar configuração exclusiva de destroy"
-        if: env.TERRAFORM_ACTION == 'destroy'
-        run: node .github/scripts/prepare-destroy.cjs
-
-      - name: "🚀 04 · Inicializar Terraform"
-        run: terraform -chdir="$TF_WORKING_DIRECTORY" init -input=false
-
-      - name: "📦 05 · Restaurar cache do state Terraform"
+      - name: "📦 04 · Restaurar cache do state Terraform"
         uses: actions/cache/restore@v6
         with:
           path: |
@@ -260,6 +259,16 @@ jobs:
           key: tfstate-vpc-${{ steps.aws_credentials.outputs.aws-account-id }}-${{ inputs.environment_name }}-${{ github.run_id }}
           restore-keys: |
             tfstate-vpc-${{ steps.aws_credentials.outputs.aws-account-id }}-${{ inputs.environment_name }}-
+
+      - name: "🛡️ Validar state da conta AWS atual"
+        run: node .github/scripts/bootstrap-account-state.cjs
+
+      - name: "🛡️ Preparar configuração exclusiva de destroy"
+        if: env.TERRAFORM_ACTION == 'destroy'
+        run: node .github/scripts/prepare-destroy.cjs
+
+      - name: "🚀 05 · Inicializar Terraform"
+        run: terraform -chdir="$TF_WORKING_DIRECTORY" init -input=false
 
       - name: "⬇️ 06 · Baixar plano do Terraform publicado"
         uses: actions/download-artifact@v8
