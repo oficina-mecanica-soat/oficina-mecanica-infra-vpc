@@ -212,10 +212,20 @@ O destroy restaura o cache Terraform existente e usa uma configuração temporá
 
 Na API, vínculos Kubernetes só podem ser retirados por blocos declarativos removed com destroy=false após ResourceNotFoundException confirmar que o EKS registrado no state não existe. Com EKS existente, permanece a configuração normal de destroy. Não há uso de state rm, import ou mv.
 
-O retorno isolado de terraform-action.env para apply ainda é reconhecido como mudança de infraestrutura pelo detector de CD; não faça esse retorno enquanto não existir separação segura entre rearmar e provisionar. Preserve destroy após a reconciliação e só autorize nova subida em tarefa própria.
+O retorno de terraform-action.env para apply é reconhecido como mudança de infraestrutura pelo detector de CD. O bloqueio `AWS_DEPLOY_ENABLED` descrito abaixo separa essa preparação da execução real; somente autorize nova subida em janela própria.
 
 #### State isolado por conta AWS
 
 As chaves de cache incluem o ID da conta retornado pela autenticação AWS, antes do ambiente e da execução. A restauração só pesquisa esse escopo, sem fallback para chaves históricas sem conta. Os caches anteriores permanecem preservados como histórico do laboratório encerrado 058264466885, inclusive quando contêm referências que a conta atual não consegue consultar. AccessDenied não é convertido em ausência.
 
 Sem cache no escopo atual, a esteira bloqueia apply. Um destroy dedicado só pode iniciar state novo depois de consultas read-only confirmarem que não existem recursos ou contratos do projeto na conta atual. Recursos internos do laboratório são preservados. Depois disso, o plano exclusivo de destroy e a validação de state vazio produzem o cache usado pelas próximas execuções da mesma conta. Em laboratório com recursos existentes e cache ausente, é necessário recuperar o state correto; o bootstrap não libera provisionamento automático.
+
+### Janela explícita de execução AWS — F4-04
+
+Em 11/11/2026, a preparação do retorno a `apply` acrescenta à VPC o bloqueio já usado na API, no Execução e em Kubernetes: `AWS_DEPLOY_ENABLED=true` é obrigatório no CD Development e no workflow reutilizável. Ausente/false/valor inválido bloqueia AWS. O reutilizável também exige branch develop. A variable foi cadastrada como `false` no repositório; não configurar um override divergente no Environment.
+
+Assim, o PR pode preparar `TERRAFORM_ACTION=apply` sem provisionar no merge. A mudança de variable não dispara execução por si só; a janela autorizada deverá usar o fluxo existente no commit correto. Aprovar/mesclar código não autoriza habilitar AWS. Promoção de mudança implantável bloqueada continua sem avançar como se houvesse deploy bem-sucedido.
+
+O futuro apply usará o state/cache isolado pela conta e o plano salvo já existentes. Não cria plano alternativo, altera topologia/CIDRs/nomes, descarta caches ou modifica os guardrails de destroy. Prevê somente os recursos de rede já descritos neste README: VPC, subnets, IGW/NAT, EIP, rotas e contratos SSM. EKS/RDS/serviços continuam em seus owners e etapas seguintes.
+
+A validação do bloqueio executa a etapa real de resolução em fixture temporária no CI, sem AWS: controle ausente/false/inválido ou branch diferente de develop não geram saída; true em develop com apply apenas resolve a ação. O teste está no YAML existente, sem novos arquivos/pastas de scripts. Nenhuma implantação foi executada para validar esse controle.
