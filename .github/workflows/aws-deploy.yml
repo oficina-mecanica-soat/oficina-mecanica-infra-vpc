@@ -131,7 +131,7 @@ jobs:
           path: |
             ${{ env.TF_WORKING_DIRECTORY }}/terraform.tfstate
             ${{ env.TF_WORKING_DIRECTORY }}/terraform.tfstate.backup
-          key: tfstate-vpc-${{ steps.aws_credentials.outputs.aws-account-id }}-${{ inputs.environment_name }}-${{ github.run_id }}
+          key: tfstate-vpc-${{ steps.aws_credentials.outputs.aws-account-id }}-${{ inputs.environment_name }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
             tfstate-vpc-${{ steps.aws_credentials.outputs.aws-account-id }}-${{ inputs.environment_name }}-
 
@@ -213,7 +213,7 @@ jobs:
       - name: "⬆️ 10 · Publicar plano do Terraform como artefato"
         uses: actions/upload-artifact@v7
         with:
-          name: tfplan-vpc-${{ github.run_id }}
+          name: tfplan-vpc-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ env.TF_WORKING_DIRECTORY }}/tfplan
           retention-days: 1
           if-no-files-found: error
@@ -256,7 +256,7 @@ jobs:
           path: |
             ${{ env.TF_WORKING_DIRECTORY }}/terraform.tfstate
             ${{ env.TF_WORKING_DIRECTORY }}/terraform.tfstate.backup
-          key: tfstate-vpc-${{ steps.aws_credentials.outputs.aws-account-id }}-${{ inputs.environment_name }}-${{ github.run_id }}
+          key: tfstate-vpc-${{ steps.aws_credentials.outputs.aws-account-id }}-${{ inputs.environment_name }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
             tfstate-vpc-${{ steps.aws_credentials.outputs.aws-account-id }}-${{ inputs.environment_name }}-
 
@@ -273,7 +273,7 @@ jobs:
       - name: "⬇️ 06 · Baixar plano do Terraform publicado"
         uses: actions/download-artifact@v8
         with:
-          name: tfplan-vpc-${{ github.run_id }}
+          name: tfplan-vpc-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ env.TF_WORKING_DIRECTORY }}
 
       - name: "🛡️ Validar plano exclusivo de destroy"
@@ -294,7 +294,7 @@ jobs:
           path: |
             ${{ env.TF_WORKING_DIRECTORY }}/terraform.tfstate
             ${{ env.TF_WORKING_DIRECTORY }}/terraform.tfstate.backup
-          key: tfstate-vpc-${{ steps.aws_credentials.outputs.aws-account-id }}-${{ inputs.environment_name }}-${{ github.run_id }}
+          key: tfstate-vpc-${{ steps.aws_credentials.outputs.aws-account-id }}-${{ inputs.environment_name }}-${{ github.run_id }}-${{ github.run_attempt }}
 
       - name: "🔎 09 · Validar VPC real após apply"
         if: env.TERRAFORM_ACTION == 'apply'

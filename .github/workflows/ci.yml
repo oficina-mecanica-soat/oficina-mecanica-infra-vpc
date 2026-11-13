@@ -229,6 +229,71 @@ jobs:
           }
           TESTAR_PROMOCAO_CUMULATIVA
 
+      - name: "🧪 Validar artefatos e cache por tentativa"
+        run: |
+          node <<'TESTAR_ARTEFATOS_TENTATIVA'
+          const fs = require('node:fs');
+          const assert = require('node:assert/strict');
+          const workflow = fs.readFileSync('.github/workflows/aws-deploy.yml', 'utf8').replace(/\r\n/g, '\n');
+          const etapas = workflow.split(/(?=      - name:)/);
+          const upload = etapas.filter(s => /uses: actions\/upload-artifact@/.test(s));
+          const download = etapas.filter(s => /uses: actions\/download-artifact@/.test(s));
+          const restores = etapas.filter(s => /uses: actions\/cache\/restore@/.test(s));
+          const saves = etapas.filter(s => /uses: actions\/cache\/save@/.test(s));
+          assert(upload.length > 0 && upload.length === download.length);
+          assert.equal(restores.length, 2);
+          assert.equal(saves.length, 1);
+          const valor = (etapa, campo) => {
+            const encontrado = etapa.match(new RegExp('^          ' + campo + ': (.+)$', 'm'));
+            assert(encontrado, 'Campo obrigatório: ' + campo);
+            return encontrado[1];
+          };
+          // Escapar o dólar impede interpolação prematura pelo próprio GitHub Actions no teste.
+          const expressao = nome => '\u0024{{ ' + nome + ' }}';
+          const expandir = (modelo, tentativa = 1, execucao = 100, conta = '111111111111', ambiente = 'development') => modelo
+            .replaceAll(expressao('github.run_id'), String(execucao))
+            .replaceAll(expressao('github.run_attempt'), String(tentativa))
+            .replaceAll(expressao('steps.aws_credentials.outputs.aws-account-id'), conta)
+            .replaceAll(expressao('inputs.environment_name'), ambiente);
+          for (const produtor of upload) {
+            const nome = valor(produtor, 'name');
+            assert(nome.includes(expressao('github.run_id')) && nome.includes(expressao('github.run_attempt')));
+            const consumidores = download.filter(s => valor(s, 'name') === nome);
+            assert.equal(consumidores.length, 1, 'Download deve usar exatamente o nome publicado.');
+            assert(produtor.includes('if-no-files-found: error'));
+            assert(!consumidores[0].includes('pattern:') && !consumidores[0].includes('continue-on-error:'), 'Sem fallback silencioso de artefato.');
+            const tentativa1 = expandir(nome);
+            const tentativa2 = expandir(nome, 2);
+            assert.notEqual(tentativa1, tentativa2, 'Rerun não pode colidir com artefato imutável anterior.');
+            assert.notEqual(tentativa2, expandir(nome, 2, 101), 'Execuções diferentes devem permanecer isoladas.');
+            const publicados = new Map([[tentativa1, 'conteúdo da primeira tentativa']]);
+            assert(!publicados.has(tentativa2), 'Sem nova publicação, a segunda tentativa não pode baixar a primeira.');
+            publicados.set(tentativa2, 'conteúdo da segunda tentativa');
+            assert.equal(publicados.get(expandir(valor(consumidores[0], 'name'), 2)), 'conteúdo da segunda tentativa');
+          }
+          const chaveFinal = valor(saves[0], 'key');
+          assert(saves[0].includes('if: always()'), 'Falha do apply não pode pular a preservação do state.');
+          for (const etapa of [...restores, ...saves]) {
+            const chave = valor(etapa, 'key');
+            for (const campo of ['github.run_id', 'github.run_attempt', 'steps.aws_credentials.outputs.aws-account-id', 'inputs.environment_name']) {
+              assert(chave.includes(expressao(campo)), 'Cache deve preservar conta, ambiente, execução e tentativa.');
+            }
+            assert.equal(chave, chaveFinal, 'Restaurar/salvar o mesmo escopo de state.');
+            assert(etapa.includes('/terraform.tfstate') && etapa.includes('/terraform.tfstate.backup'));
+          }
+          for (const etapa of restores) {
+            const prefixo = etapa.match(/          restore-keys: \|\n            ([^\n]+)/)?.[1];
+            assert(prefixo && prefixo.includes(expressao('steps.aws_credentials.outputs.aws-account-id')) && prefixo.includes(expressao('inputs.environment_name')));
+            assert.equal(expandir(chaveFinal).startsWith(expandir(prefixo)), true);
+            assert.notEqual(expandir(prefixo), expandir(prefixo, 1, 100, '222222222222'));
+            assert.notEqual(expandir(prefixo), expandir(prefixo, 1, 100, '111111111111', 'production'));
+          }
+          const antes = expandir(chaveFinal);
+          const depois = expandir(chaveFinal, 2);
+          assert.notEqual(antes, depois, 'State de falha parcial precisa de chave gravável na nova tentativa.');
+          console.log('Artefatos/cache por execução e tentativa: nomes simétricos, sem reaproveitar plano/pacote anterior, conta/ambiente isolados e state sempre preservado na configuração.');
+          TESTAR_ARTEFATOS_TENTATIVA
+
       - name: "🧪 Validar recuperação segura de destroy"
         run: node --test .github/scripts/*.test.cjs
 
