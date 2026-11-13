@@ -229,3 +229,11 @@ Assim, o PR pode preparar `TERRAFORM_ACTION=apply` sem provisionar no merge. A m
 O futuro apply usará o state/cache isolado pela conta e o plano salvo já existentes. Não cria plano alternativo, altera topologia/CIDRs/nomes, descarta caches ou modifica os guardrails de destroy. Prevê somente os recursos de rede já descritos neste README: VPC, subnets, IGW/NAT, EIP, rotas e contratos SSM. EKS/RDS/serviços continuam em seus owners e etapas seguintes.
 
 A validação do bloqueio executa a etapa real de resolução em fixture temporária no CI, sem AWS: controle ausente/false/inválido ou branch diferente de develop não geram saída; true em develop com apply apenas resolve a ação. O teste está no YAML existente, sem novos arquivos/pastas de scripts. Nenhuma implantação foi executada para validar esse controle.
+
+## Promoção cumulativa — AUD-003
+
+A abertura/manutenção automática do PR `develop` → `release` compara todo o conteúdo implantável pendente, seguindo a regra já aprovada na API/Execução. Uma alteração documental não libera código/infraestrutura anterior sem operação confirmada. Detector e guarda compartilham os mesmos caminhos, preservando o escopo de deploy existente.
+
+A guarda exige sucesso da operação atual ou do CD do último commit implantável na linha principal de develop, incluindo o job de apply/destroy da tentativa atual. Deploy pulado/falho, rerun falho, histórico ausente ou erro de Git/GitHub bloqueiam; documentação após operação comprovada continua permitida. É conservadora quando a evidência exigida não está disponível. Não consulta AWS.
+
+Preserva `AWS_DEPLOY_ENABLED`, `AUTO_PR_ENABLED`, environments, plano salvo, state/cache, guardrails de destroy e merge humano. Não altera ancestralidade (PIPE-005), recursos, contratos SSM ou `terraform-action.env`. PRs existentes continuam sujeitos à revisão humana; a trava protege sua abertura/manutenção pelo CD. Nesta rodada, integrar somente em `develop`, sem promover release/main, sem implantação e com laboratório offline. Testes ficam inline no CI existente, sem novos arquivos ou pastas auxiliares.
