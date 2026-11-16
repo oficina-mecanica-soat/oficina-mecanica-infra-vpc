@@ -87,21 +87,7 @@ terraform -chdir="infra/terraform/environments/dev" validate
 terraform -chdir="infra/terraform/environments/dev" plan
 ```
 
-Para aplicar localmente:
-
-```powershell
-terraform -chdir="infra/terraform/environments/dev" apply
-```
-
-Para destruir localmente:
-
-```powershell
-terraform -chdir="infra/terraform/environments/dev" destroy
-```
-
-> Preferência do projeto: usar a esteira do GitHub Actions para `apply` e `destroy`, mantendo rastreabilidade.
-
----
+Apply e destroy reais são exclusivos da esteira GitHub Actions, por PR em `develop`, controle versionado e janela autorizada. Os comandos locais acima são somente de validação e planejamento; não aplicar nem destruir recursos localmente.
 
 ## 🔁 CI/CD
 
@@ -141,7 +127,7 @@ O bypass dispensa a revisão de outra pessoa, nunca o fluxo ou os checks. O GitH
 
 O ruleset de fluxo usa `strict_required_status_checks_policy=false` para não exigir promoção inversa entre branches; checks continuam obrigatórios e conflitos reais precisam ser resolvidos. O proprietário ainda pode alterar as configurações administrativas: o bloqueio depende dos rulesets ativos e da integridade dos workflows de validação.
 
-Repetir este padrão em cada novo repositório. A configuração detalhada está no [guia de GitHub Actions da API](https://github.com/geoscabio/oficina-mecanica-api/blob/develop/docs/deploy/github-actions.md#-proteções-obrigatórias-recomendadas).
+Repetir este padrão em cada novo repositório. A configuração detalhada está no [guia de GitHub Actions da API](https://github.com/oficina-mecanica-soat/oficina-mecanica-api/blob/develop/docs/deploy/github-actions.md#-proteções-obrigatórias-recomendadas).
 
 O título de execução do `🔀 CD Release` é `🔀 Registrar deploy em release`; produção só é registrada depois do merge em `main`.
 
@@ -153,10 +139,15 @@ O título de execução do `🔀 CD Release` é `🔀 Registrar deploy em releas
 
 ```text
 1. oficina-mecanica-infra-vpc
-2. oficina-mecanica-infra-rds e oficina-mecanica-infra-kubernetes
-3. oficina-mecanica-auth-lambda
-4. oficina-mecanica-api
-5. oficina-mecanica-infra-api-gateway
+2. oficina-mecanica-infra-kubernetes
+3. oficina-mecanica-infra-rds
+4. oficina-mecanica-api (publica fila OS e consulta privada)
+5. oficina-mecanica-auth-lambda
+6. oficina-mecanica-execucao
+7. oficina-mecanica-orcamento-pagamento (pagamento ainda desligado)
+8. oficina-mecanica-api (atualiza o processamento distribuído)
+9. oficina-mecanica-infra-api-gateway (todas as rotas)
+10. oficina-mecanica-orcamento-pagamento (configura pagamento com URL real)
 ```
 
 ### Destroy da solução completa
@@ -165,11 +156,13 @@ O título de execução do `🔀 CD Release` é `🔀 Registrar deploy em releas
 1. oficina-mecanica-infra-api-gateway
 2. oficina-mecanica-api
 3. oficina-mecanica-auth-lambda
-4. oficina-mecanica-infra-kubernetes e oficina-mecanica-infra-rds
-5. oficina-mecanica-infra-vpc
+4. oficina-mecanica-orcamento-pagamento e oficina-mecanica-execucao
+5. oficina-mecanica-infra-rds
+6. oficina-mecanica-infra-kubernetes
+7. oficina-mecanica-infra-vpc
 ```
 
-A VPC deve ser a última a ser destruída, porque os demais recursos dependem dela.
+A VPC deve ser a última a ser destruída. Antes de remover aplicações/filas, interromper entradas/produtores de forma coordenada e reconciliar outboxes/Sagas; os guardrails devem confirmar filas/DLQs sem pendências. A [ordem canônica das esteiras](https://github.com/oficina-mecanica-soat/oficina-mecanica-api#deploy-aws) explica cada passagem. RDS depende de Kubernetes para preparar seu banco próprio; esses applies não são paralelos na implantação atual.
 
 ---
 
@@ -204,7 +197,7 @@ Após `apply`, valide a VPC e os parâmetros `/oficina-mecanica/development/vpc/
 - Validação real da VPC após `apply` e após `destroy`.
 - Nomenclatura com prefixo `oficina-mecanica-*`.
 
-Documentação central e arquitetura completa: [README da Oficina Mecânica API](https://github.com/geoscabio/oficina-mecanica-api).
+Documentação central e arquitetura completa: [README da Oficina Mecânica API](https://github.com/oficina-mecanica-soat/oficina-mecanica-api).
 
 ### Reconciliação de destroy após reset do laboratório
 
