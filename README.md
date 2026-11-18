@@ -2,7 +2,9 @@
 
 Rede compartilhada da solução: VPC, subnets públicas/privadas, rotas, Internet Gateway e NAT. Publica os contratos usados pelas demais esteiras. É a primeira infraestrutura no apply e a última no destroy.
 
-## Dependências
+<a id="dependências"></a>
+
+## 🔗 Dependências
 
 Não depende de outra esteira. Consumidores usam `/oficina-mecanica/development/vpc/*` e `/oficina-mecanica/development/status/vpc`. Após apply, o CD confere recursos/contratos; após destroy, confere a ausência. Não remover enquanto houver consumidores.
 
@@ -60,7 +62,9 @@ Após `apply`, valide a VPC e os parâmetros `/oficina-mecanica/development/vpc/
 
 ---
 
-## Operação e documentação
+<a id="operação-e-documentação"></a>
+
+## 🧭 Operação e documentação
 
 - [Visão geral, arquitetura e ordem das esteiras](https://github.com/oficina-mecanica-soat/oficina-mecanica-api#deploy-aws).
 - [Configuração, primeira aplicação e recuperação após Reset](https://github.com/oficina-mecanica-soat/oficina-mecanica-api/blob/develop/docs/deploy/deploy-aws.md).
