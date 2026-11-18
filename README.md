@@ -8,6 +8,16 @@ Rede compartilhada da solução: VPC, subnets públicas/privadas, rotas, Interne
 
 Não depende de outra esteira. Consumidores usam `/oficina-mecanica/development/vpc/*` e `/oficina-mecanica/development/status/vpc`. Após apply, o CD confere recursos/contratos; após destroy, confere a ausência. Não remover enquanto houver consumidores.
 
+| Consumidor | Uso da rede provisionada aqui |
+| --- | --- |
+| Kubernetes | Subnets privadas para EKS/nodes e NLB interno; saída controlada para dependências externas |
+| RDS | DB subnet group privado e VPC do security group SQL |
+| Auth Lambda | Associação da função às subnets privadas para consultar OS |
+| API Gateway | VPC Link nas subnets privadas para alcançar os três listeners do NLB |
+| OS, Execução e Orçamento/Pagamento | Usam a rede por seus workloads no EKS; não criam outra VPC ou subnets |
+
+Esta esteira cria a base de rede compartilhada, não os bancos, registries, workloads ou filas dos serviços. As regras específicas de NLB, SQL, Lambda e VPC Link pertencem às esteiras que os provisionam. Fonte: [`infra/terraform/modules/vpc`](infra/terraform/modules/vpc).
+
 
 ## 📦 Recursos criados
 
